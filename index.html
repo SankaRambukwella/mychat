@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>FunChat App</title>
+  <title>FunChat 💬</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
@@ -74,11 +74,17 @@
     }
 
     .link-box {
-      word-break: break-all;
+      word-break: break-word;
       background: #eef;
       padding: 10px;
       margin-top: 10px;
       border-radius: 5px;
+    }
+
+    .note {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 5px;
     }
   </style>
 </head>
@@ -86,16 +92,20 @@
   <div class="container">
     <h2>FunChat 💬</h2>
 
+    <!-- Registration Section -->
     <div id="registerSection">
       <input type="text" id="nickname" placeholder="Enter your nickname">
       <button onclick="register()">Register</button>
     </div>
 
+    <!-- Chat Link Generator -->
     <div id="linkSection" style="display:none;">
       <button onclick="generateLink()">Generate Chat Link</button>
       <div class="link-box" id="chatLinkBox" style="display:none;"></div>
+      <p class="note">Send this link to your friend. Chat starts when they join.</p>
     </div>
 
+    <!-- Chat Interface -->
     <div id="chatSection" style="display:none;">
       <div id="chatBox"></div>
       <input type="text" id="msgInput" placeholder="Type your message...">
@@ -104,12 +114,15 @@
   </div>
 
   <script>
+    // TODO: Replace this with your deployed Web App URL
     const backendUrl = 'https://script.google.com/macros/s/AKfycby824F89m8Gilrp5AkTS5QLyJpy70xqSugg4qA5uDWSXFTVvIWbt-csEOoUK2owv5jx/exec';
+
     let nickname = '';
     let chatId = '';
     let isUserA = true;
     let pollInterval = null;
 
+    // Detect if this is a joined chat via ?chat= link
     window.onload = () => {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.has('chat')) {
@@ -123,7 +136,7 @@
       if (!nickname) return alert("Enter a nickname");
 
       if (chatId) {
-        // Join chat
+        // Join existing chat
         fetch(`${backendUrl}?action=joinChat&chatId=${chatId}&nickname=${nickname}`)
           .then(res => res.json())
           .then(data => {
@@ -135,30 +148,36 @@
             }
           });
       } else {
-        // Normal registration
+        // Register as new user and prepare to generate link
         document.getElementById('registerSection').style.display = 'none';
         document.getElementById('linkSection').style.display = 'block';
       }
     }
 
-   function generateLink() {
-  fetch(`${backendUrl}?action=createChat&nickname=${nickname}`)
-    .then(res => res.json())
-    .then(data => {
-      console.log("Response from backend:", data); // <-- add this
-      if (data.success) {
-        chatId = data.chatId;
-        const link = `${window.location.origin}${window.location.pathname}?chat=${chatId}`;
-        document.getElementById('chatLinkBox').style.display = 'block';
-        document.getElementById('chatLinkBox').innerText = link;
-        startChat();
-      } else {
-        alert("Error creating chat.");
-      }
-    }).catch(err => {
-      console.error("Fetch error:", err); // <-- add this
-    });
-}
+    function generateLink() {
+      fetch(`${backendUrl}?action=createChat&nickname=${nickname}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log("Response from backend:", data);
+          if (data.success) {
+            chatId = data.chatId;
+            const link = `${window.location.href.split('?')[0]}?chat=${chatId}`;
+            const box = document.getElementById('chatLinkBox');
+            box.style.display = 'block';
+            box.innerHTML = `<strong>Send this link to your friend:</strong><br><a href="${link}" target="_blank">${link}</a>`;
+
+            // Optional: Copy to clipboard
+            navigator.clipboard.writeText(link).then(() => {
+              alert("Link copied to clipboard!");
+            });
+          } else {
+            alert("Error creating chat.");
+          }
+        })
+        .catch(err => {
+          console.error("Fetch error:", err);
+        });
+    }
 
     function startChat() {
       document.getElementById('registerSection').style.display = 'none';
@@ -176,10 +195,11 @@
       fetch(`${backendUrl}?action=sendMessage`, {
         method: 'POST',
         body: JSON.stringify({ chatId, nickname, msg })
-      }).then(res => res.json())
-        .then(data => {
-          if (!data.success) alert("Failed to send message.");
-        });
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) alert("Failed to send message.");
+      });
     }
 
     function pollMessages() {
